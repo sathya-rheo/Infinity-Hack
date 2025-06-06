@@ -1,12 +1,13 @@
 from app import db
-from flask import Blueprint, request, jsonify
+from flask import Blueprint, request, jsonify, send_file
 import math
 import ast
+from gridfs import GridFS
 
 movies_collection = db.movies_metadata
 
 
-
+fs = GridFS(db)
 movie_bp = Blueprint("movie", __name__)
 
 @movie_bp.route("/list", methods=["GET"])
@@ -37,6 +38,8 @@ def get_movies():
     movies = []
     for movie in movies_cursor:
         movie["_id"] = str(movie["_id"])
+        movie_id = movie.get("id")
+        movie["poster_url"] = f"{request.host_url}poster/{movie_id}"
         movies.append(movie)
 
     return jsonify({
@@ -45,3 +48,34 @@ def get_movies():
         "total_movies": total_count,
         "movies": movies
     }), 200
+
+
+@movie_bp.route("/movie/<int:movie_id>", methods=["GET"])
+def get_movie_details(movie_id):
+    movie = db.movies_metadata.find_one({"id": movie_id})
+    if not movie:
+        return jsonify({"error": "Movie not found"}), 404
+
+    movie["_id"] = str(movie["_id"])
+
+    ratings_cursor = db.ratings.find({"movieId": movie_id})
+    ratings = [{"userId": r["userId"], "rating": r["rating"], "timestamp": r["timestamp"]} for r in ratings_cursor]
+
+    average_rating = round(sum(each_rating["rating"] for each_rating in ratings) / len(ratings) if ratings else 0, 2)
+
+    movie["ratings"] = average_rating
+    movie["poster_url"] = f"{request.host_url}poster/{movie_id}"
+        
+    return jsonify({
+        "movie": movie,
+        "ratings": ratings
+    }), 200
+
+
+
+@movie_bp.route("/poster/<movie_id>", methods=["GET"])
+def get_poster(movie_id):
+    file = fs.find_one({"filename": str(movie_id)})
+    if not file:
+        return jsonify({"error": "Poster not found"}), 404
+    return send_file(file, mimetype=file.content_type)
