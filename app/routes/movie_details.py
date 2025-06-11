@@ -1,7 +1,9 @@
+
 from app import db
 from flask import Blueprint, request, jsonify, send_file
 import math
 import ast
+from app.services.movie import get_signed_url
 from gridfs import GridFS
 
 movies_collection = db.movies_metadata
@@ -39,7 +41,8 @@ def get_movies():
     for movie in movies_cursor:
         movie["_id"] = str(movie["_id"])
         movie_id = movie.get("id")
-        movie["poster_url"] = f"{request.host_url}poster/{movie_id}"
+        poster  = get_signed_url(f"posters/{movie_id}.jpg")
+        movie["poster_url"] = poster["signed_url"]
         movies.append(movie)
 
     return jsonify({
@@ -64,7 +67,8 @@ def get_movie_details(movie_id):
     average_rating = round(sum(each_rating["rating"] for each_rating in ratings) / len(ratings) if ratings else 0, 2)
 
     movie["ratings"] = average_rating
-    movie["poster_url"] = f"{request.host_url}poster/{movie_id}"
+    poster = get_signed_url(f"posters/{movie_id}.jpg")
+    movie["poster_url"] = poster["signed_url"]
         
     return jsonify({
         "movie": movie,
@@ -79,3 +83,13 @@ def get_poster(movie_id):
     if not file:
         return jsonify({"error": "Poster not found"}), 404
     return send_file(file, mimetype=file.content_type)
+
+@movie_bp.route('/get-signed-url', methods=['POST'])
+def get_signed_url_route():   
+    data = request.json
+    filename = data.get("filename")
+    try:
+        return jsonify(get_signed_url(filename))
+
+    except Exception as e:
+        return {"error": str(e)}, 500
