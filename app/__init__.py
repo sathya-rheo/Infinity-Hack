@@ -12,7 +12,7 @@ db = None
 def create_app():
     app = Flask(__name__)
 
-    CORS(app, origins=["https://frontend-jt19.onrender.com"])
+    CORS(app)
 
     MONGO_URI = os.getenv("MONGO_CLIENT")
 
