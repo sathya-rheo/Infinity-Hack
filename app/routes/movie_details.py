@@ -1,4 +1,5 @@
 
+from datetime import datetime, timedelta
 from app import db
 from flask import Blueprint, request, jsonify, send_file
 import math
@@ -17,6 +18,8 @@ def get_movies():
     keyword = request.args.get("keyword")
     page = int(request.args.get("page", 1))
     limit = int(request.args.get("limit", 10))
+    sort_by = request.args.get("sort_by")
+
     skip = (page - 1) * limit
 
     movie_ids = []
@@ -33,6 +36,9 @@ def get_movies():
         ).skip(skip).limit(limit)
 
         total_count = db.movies_metadata.count_documents({"id": {"$in": movie_ids}})
+    elif sort_by:
+        movies_cursor = db.movies_metadata.find().sort(sort_by, -1).skip(skip).limit(limit)
+        total_count = db.movies_metadata.estimated_document_count()
     else:
         movies_cursor = db.movies_metadata.find().skip(skip).limit(limit)
         total_count = db.movies_metadata.estimated_document_count()
