@@ -59,7 +59,7 @@ def get_movies():
     }), 200
 
 
-@movie_bp.route("/movie/<int:movie_id>", methods=["GET"])
+@movie_bp.route("/movie/<string:movie_id>", methods=["GET"])
 def get_movie_details(movie_id):
     movie = db.movies_metadata.find_one({"id": movie_id})
     if not movie:
