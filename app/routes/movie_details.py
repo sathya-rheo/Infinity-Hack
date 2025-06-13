@@ -3,7 +3,7 @@ from app import db
 from flask import Blueprint, request, jsonify, send_file, g
 import math
 import ast
-from app.services.movie import get_signed_url,get_castdetails
+from app.services.movie import get_signed_url,get_castdetails,get_crewdetails
 from app.utils.helper import paginate
 from gridfs import GridFS
 from jose import jwt, JWTError
@@ -112,10 +112,12 @@ def get_movie_details(movie_id):
     movie["poster_url"] = poster["signed_url"]
     movie["is_watchlisted"] = movie_id in watchlisted_ids
     castdata = get_castdetails(movie_id)
+    crewdetails = get_crewdetails(movie_id)
     return jsonify({
         "movie": movie,
         "ratings": ratings,
         "castdata": castdata,
+        "crewdetails": crewdetails
     }), 200
 
 
@@ -164,4 +166,7 @@ def get_keywords():
 
 
 
-    
+@movie_bp.route('/crewdetails')
+def crewdetails():
+    movie_id = request.args.get("movie_id")
+    return get_crewdetails(movie_id)

@@ -55,3 +55,28 @@ def get_castdetails(movie_id):
         return {"error": "Movie Not Found"}, 404
     except Exception as e:
         return {"error": str(e)}, 500
+
+
+def get_crewdetails(movie_id):
+    try:
+        listofcast = db.credits.find_one(
+            {"id": movie_id}
+        )
+        targetjobs = {"Executive Producer", "Original Music Composer", "Director"}
+        crew = []
+        # dirictor_details = {}
+        
+        for c in listofcast.get('crew', []):
+            job = c.get('job')
+            if job in targetjobs:
+                crew.append(c)
+                c['profilr_url'] = get_signed_url(f"tmdb_profile_photos/{c['id']}.jpg").get('signed_url')
+        return crew
+    except TypeError:
+        return {"error": "Movie Not Found"}, 404
+    except Exception as e:
+        return {"error": str(e)}, 500
+
+
+
+
