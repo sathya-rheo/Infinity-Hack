@@ -45,7 +45,7 @@ def get_castdetails(movie_id):
 
         for c in cast['cast']:
             if c.get('id'):
-                c['profile_url'] = get_signed_url(f'tmdb_profile_photos/{c['id']}.jpg').get('signed_url')
+                c['profile_url'] = get_signed_url(f"tmdb_profile_photos/{c['id']}.jpg").get('signed_url')
 
         cast['crew'] = listofcast['crew']
 
