@@ -39,7 +39,6 @@ def get_movies():
     user_id = g.user_id
     movie_ids = []
 
-    # Get user's watchlist
     watchlist = db.watchlists.find_one({"user_id": user_id})
     watchlisted_ids = set(watchlist["movie_ids"]) if watchlist and "movie_ids" in watchlist else set()
 
@@ -90,12 +89,18 @@ def get_movies():
 
 
 @movie_bp.route("/movie/<string:movie_id>", methods=["GET"])
+@require_auth
 def get_movie_details(movie_id):
+    user_id = g.user_id
     movie = db.movies_metadata.find_one({"id": movie_id})
     if not movie:
         return jsonify({"error": "Movie not found"}), 404
 
     movie["_id"] = str(movie["_id"])
+    
+    watchlist = db.watchlists.find_one({"user_id": user_id})
+    watchlisted_ids = set(watchlist["movie_ids"]) if watchlist and "movie_ids" in watchlist else set()
+
 
     ratings_cursor = db.ratings.find({"movieId": movie_id})
     ratings = [{"userId": r["userId"], "rating": r["rating"], "timestamp": r["timestamp"]} for r in ratings_cursor]
@@ -105,6 +110,7 @@ def get_movie_details(movie_id):
     movie["ratings"] = average_rating
     poster = get_signed_url(f"posters/{movie_id}.jpg")
     movie["poster_url"] = poster["signed_url"]
+    movie["is_watchlisted"] = movie_id in watchlisted_ids
     castdata = get_castdetails(movie_id)
     return jsonify({
         "movie": movie,
