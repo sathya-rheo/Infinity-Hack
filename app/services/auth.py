@@ -1,4 +1,5 @@
 from functools import wraps
+import os
 from flask import request, jsonify, g
 import requests
 from jose import jwt, JWTError
@@ -37,6 +38,12 @@ def verify_token(token):
 def require_auth(f):
     @wraps(f)
     def decorated(*args, **kwargs):
+        # Skip auth check in dev environment
+        if os.getenv('FLASK_ENV') == 'development':
+            g.user_id = 'dev_user'
+            g.user_payload = {'sub': 'dev_user'}
+            return f(*args, **kwargs)
+
         auth_header = request.headers.get("Authorization", None)
         if not auth_header:
             return jsonify({"error": "Missing Authorization header"}), 401
@@ -50,4 +57,5 @@ def require_auth(f):
         g.user_id = payload["sub"]
         g.user_payload = payload
         return f(*args, **kwargs)
+    
     return decorated 
