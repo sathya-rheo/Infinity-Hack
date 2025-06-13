@@ -139,3 +139,23 @@ def castdetails():
     return get_castdetails(movie_id)
 
 
+@movie_bp.route('/keywords', methods=['POST'])
+@require_auth
+def get_keywords():
+    data = request.json
+    movie_ids = data.get("movie_ids")
+
+    keywords = db.keywords.find({"id": {"$in": movie_ids}})
+
+    keywords_list = []
+    for keyword in keywords:
+        movie_keywords = {}
+        movie_keywords["id"] = keyword["id"]
+        movie_keywords["keywords"] = ','.join([each_keyword["name"] for each_keyword in keyword["keywords"]])
+        keywords_list.append(movie_keywords)
+
+    return jsonify(keywords_list)
+
+
+
+    
