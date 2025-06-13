@@ -36,7 +36,12 @@ def get_movies():
     limit = int(request.args.get("limit", 10))
     sort_by = request.args.get("sort_by")
 
+    user_id = g.user_id
     movie_ids = []
+
+    # Get user's watchlist
+    watchlist = db.watchlists.find_one({"user_id": user_id})
+    watchlisted_ids = set(watchlist["movie_ids"]) if watchlist and "movie_ids" in watchlist else set()
 
     if keyword:
         # First check by title and then by keywords
@@ -73,6 +78,7 @@ def get_movies():
         movie_id = movie.get("id")
         poster = get_signed_url(f"posters/{movie_id}.jpg")
         movie["poster_url"] = poster["signed_url"]
+        movie["is_watchlisted"] = movie_id in watchlisted_ids
         movies.append(movie)
 
     return jsonify({
