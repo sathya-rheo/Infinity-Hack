@@ -4,7 +4,7 @@ from app import db
 from flask import Blueprint, request, jsonify, send_file
 import math
 import ast
-from app.services.movie import get_signed_url
+from app.services.movie import get_signed_url,get_castdetails
 from gridfs import GridFS
 
 movies_collection = db.movies_metadata
@@ -75,10 +75,11 @@ def get_movie_details(movie_id):
     movie["ratings"] = average_rating
     poster = get_signed_url(f"posters/{movie_id}.jpg")
     movie["poster_url"] = poster["signed_url"]
-        
+    castdata = get_castdetails(movie_id)
     return jsonify({
         "movie": movie,
-        "ratings": ratings
+        "ratings": ratings,
+        "castdata": castdata,
     }), 200
 
 
@@ -99,3 +100,12 @@ def get_signed_url_route():
 
     except Exception as e:
         return {"error": str(e)}, 500
+
+
+
+@movie_bp.route('/cast_details')
+def castdetails():
+    movie_id = request.args.get("movie_id")
+    return get_castdetails(movie_id)
+
+

@@ -1,7 +1,8 @@
 import os
 from datetime import datetime, timedelta
 from azure.storage.blob import BlobServiceClient, BlobSasPermissions, generate_blob_sas
-
+from app import db
+from flask import jsonify
 
 
 def get_signed_url(filename):
@@ -32,3 +33,25 @@ def get_signed_url(filename):
 
     except Exception as e:
         return {"error": str(e)}
+
+
+def get_castdetails(movie_id):
+    try:
+        listofcast = db.credits.find_one(
+            {"id" : movie_id}
+        ) 
+        cast = {}
+        cast['cast'] = listofcast['cast']
+
+        for c in cast['cast']:
+            if c.get('id'):
+                c['profile_url'] = get_signed_url(f'tmdb_profile_photos/{c['id']}.jpg').get('signed_url')
+
+        cast['crew'] = listofcast['crew']
+
+
+        return cast
+    except TypeError:
+        return {"error": "Movie Not Found"}, 404
+    except Exception as e:
+        return {"error": str(e)}, 500
