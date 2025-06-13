@@ -1,11 +1,13 @@
-
 from datetime import datetime, timedelta
 from app import db
-from flask import Blueprint, request, jsonify, send_file
+from flask import Blueprint, request, jsonify, send_file, g
 import math
 import ast
 from app.services.movie import get_signed_url,get_castdetails
 from gridfs import GridFS
+from jose import jwt, JWTError
+import requests
+from app.services.auth import require_auth
 
 movies_collection = db.movies_metadata
 
@@ -13,7 +15,20 @@ movies_collection = db.movies_metadata
 fs = GridFS(db)
 movie_bp = Blueprint("movie", __name__)
 
+
+@movie_bp.route("/api/protected")
+@require_auth
+def protected():
+    return jsonify({
+        "message": "Access granted",
+        "user_id": g.user_id,
+        "full_payload": g.user_payload
+    })
+
+
+
 @movie_bp.route("/list", methods=["GET"])
+@require_auth
 def get_movies():
     keyword = request.args.get("keyword")
     page = int(request.args.get("page", 1))
@@ -25,11 +40,19 @@ def get_movies():
     movie_ids = []
 
     if keyword:
-        matched_keywords = db.keywords.find(
-            {"keywords": {"$regex": keyword, "$options": "i"}},
+        # First check by title and then by keywords
+        matched_title = db.movies_metadata.find(
+            {"title": {"$regex": keyword, "$options": "i"}},
             {"id": 1}
         )
-        movie_ids = [doc["id"] for doc in matched_keywords]
+        movie_ids = [doc["id"] for doc in matched_title]
+
+        if not movie_ids:
+            matched_keywords = db.keywords.find(
+                {"keywords.name": {"$regex": keyword, "$options": "i"}},
+                {"id": 1}
+            )
+            movie_ids = [doc["id"] for doc in matched_keywords]
 
         movies_cursor = db.movies_metadata.find(
             {"id": {"$in": movie_ids}}
