@@ -1,10 +1,11 @@
 
 from app import db
-from flask import Blueprint, request, jsonify, send_file
+from flask import Blueprint, request, jsonify, send_file, g
 from app.utils.helper import paginate
 from app.services.watchlist import paginate_list
 from app.services.movie import get_signed_url
 import math
+from app.services.auth import require_auth
 
 
 watchlist_collection = db.watchlist
@@ -13,9 +14,10 @@ watchlist_collection = db.watchlist
 watchlist_bp = Blueprint("watchlist", __name__)
 
 @watchlist_bp.route("/create", methods=["POST"])
+@require_auth
 def create_or_update_watchlist():
     data = request.json
-    user_id = request.args.get("user_id")
+    user_id = g.user_id
     
     movie_id = data.get("movie_id")
     movie_id = str(movie_id)
@@ -44,8 +46,9 @@ def create_or_update_watchlist():
 
 
 @watchlist_bp.route("/get", methods=["GET"])
+@require_auth
 def get_watchlist():
-    user_id = request.args.get("user_id")
+    user_id = g.user_id
     page = int(request.args.get("page", 1))
     limit = int(request.args.get("limit", 10))
 
