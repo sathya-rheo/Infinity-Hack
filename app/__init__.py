@@ -18,7 +18,7 @@ def create_app():
 
     global mongo_client, db
     mongo_client = MongoClient(MONGO_URI)
-    db = mongo_client.movies 
+    db = mongo_client.movieflix 
 
     from .routes import register_blueprints
     register_blueprints(app)
