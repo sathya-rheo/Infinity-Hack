@@ -4,6 +4,7 @@ from flask import Blueprint, request, jsonify, send_file, g
 import math
 import ast
 from app.services.movie import get_signed_url,get_castdetails
+from app.utils.helper import paginate
 from gridfs import GridFS
 from jose import jwt, JWTError
 import requests
@@ -35,8 +36,6 @@ def get_movies():
     limit = int(request.args.get("limit", 10))
     sort_by = request.args.get("sort_by")
 
-    skip = (page - 1) * limit
-
     movie_ids = []
 
     if keyword:
@@ -56,21 +55,23 @@ def get_movies():
 
         movies_cursor = db.movies_metadata.find(
             {"id": {"$in": movie_ids}}
-        ).skip(skip).limit(limit)
+        )
 
         total_count = db.movies_metadata.count_documents({"id": {"$in": movie_ids}})
     elif sort_by:
-        movies_cursor = db.movies_metadata.find().sort(sort_by, -1).skip(skip).limit(limit)
+        movies_cursor = db.movies_metadata.find().sort(sort_by, -1)
         total_count = db.movies_metadata.estimated_document_count()
     else:
-        movies_cursor = db.movies_metadata.find().skip(skip).limit(limit)
+        movies_cursor = db.movies_metadata.find()
         total_count = db.movies_metadata.estimated_document_count()
-
+        
+    movies_cursor, _ = paginate(movies_cursor, page, limit)
+    
     movies = []
     for movie in movies_cursor:
         movie["_id"] = str(movie["_id"])
         movie_id = movie.get("id")
-        poster  = get_signed_url(f"posters/{movie_id}.jpg")
+        poster = get_signed_url(f"posters/{movie_id}.jpg")
         movie["poster_url"] = poster["signed_url"]
         movies.append(movie)
 
