@@ -76,7 +76,7 @@ def get_crewdetails(movie_id):
             job = c.get('job')
             if job in targetjobs:
                 crew.append(c)
-                c['profilr_url'] = get_signed_url(f"tmdb_profile_photos/{c['id']}.jpg").get('signed_url')
+                c['profile_url'] = get_signed_url(f"tmdb_profile_photos/{c['id']}.jpg").get('signed_url')
         return crew
     except TypeError:
         return {"error": "Movie Not Found"}, 404
