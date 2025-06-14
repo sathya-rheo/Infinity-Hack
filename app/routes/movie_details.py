@@ -40,8 +40,15 @@ def get_movies():
     movie_ids = []
 
     watchlist = db.watchlists.find_one({"user_id": user_id})
-    watchlisted_ids = set(watchlist["movie_ids"]) if watchlist and "movie_ids" in watchlist else set()
+    watchlisted_ids = set(watchlist.get("movie_ids", [])) if watchlist else set()
 
+    user_details = db.user_details.find_one({"user_id": user_id})
+    liked_movies_data = user_details.get("movie_ids", []) if user_details else []
+    
+    liked_lookup = {
+    str(entry["movie_id"]): entry["preference"]
+    for entry in liked_movies_data
+}
     if keyword:
         # First check by title and then by keywords
         matched_title = db.movies_metadata.find(
@@ -78,6 +85,11 @@ def get_movies():
         poster = get_signed_url(f"posters/{movie_id}.jpg")
         movie["poster_url"] = poster["signed_url"]
         movie["is_watchlisted"] = movie_id in watchlisted_ids
+        
+        preference = liked_lookup.get(movie_id)
+        movie["watched"] = preference is not None
+        movie["preference"] = preference 
+        
         movies.append(movie)
 
     return jsonify({
@@ -142,9 +154,11 @@ def get_signed_url_route():
 
 
 @movie_bp.route('/cast_details')
+@require_auth
 def castdetails():
+    user_id = g.user_id
     movie_id = request.args.get("movie_id")
-    return get_castdetails(movie_id)
+    return get_castdetails(movie_id, user_id)
 
 
 @movie_bp.route('/keywords', methods=['POST'])
