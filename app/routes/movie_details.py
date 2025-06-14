@@ -112,6 +112,14 @@ def get_movie_details(movie_id):
     
     watchlist = db.watchlists.find_one({"user_id": user_id})
     watchlisted_ids = set(watchlist["movie_ids"]) if watchlist and "movie_ids" in watchlist else set()
+    
+    user_details = db.user_details.find_one({"user_id": user_id})
+    liked_movies_data = user_details.get("movie_ids", []) if user_details else []
+    
+    liked_lookup = {
+        str(entry["movie_id"]): entry["preference"]
+        for entry in liked_movies_data
+    }
 
 
     ratings_cursor = db.ratings.find({"movieId": movie_id})
@@ -123,7 +131,11 @@ def get_movie_details(movie_id):
     poster = get_signed_url(f"posters/{movie_id}.jpg")
     movie["poster_url"] = poster["signed_url"]
     movie["is_watchlisted"] = movie_id in watchlisted_ids
-    castdata = get_castdetails(movie_id)
+    preference = liked_lookup.get(movie_id)
+    movie["watched"] = preference is not None
+    movie["preference"] = preference 
+    
+    castdata = get_castdetails(movie_id, user_id)
     crewdetails = get_crewdetails(movie_id)
     return jsonify({
         "movie": movie,
