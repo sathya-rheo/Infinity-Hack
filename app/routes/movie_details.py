@@ -35,6 +35,7 @@ def get_movies():
     page = int(request.args.get("page", 1))
     limit = int(request.args.get("limit", 10))
     sort_by = request.args.get("sort_by")
+    skinny = request.args.get("skinny", "true").lower() != "false"  # Default to True
 
     user_id = g.user_id
     movie_ids = []
@@ -46,9 +47,9 @@ def get_movies():
     liked_movies_data = user_details.get("movie_ids", []) if user_details else []
     
     liked_lookup = {
-    str(entry["movie_id"]): entry["preference"]
-    for entry in liked_movies_data
-}
+        str(entry["movie_id"]): entry["preference"]
+        for entry in liked_movies_data
+    }
     if keyword:
         # First check by title and then by keywords
         matched_title = db.movies_metadata.find(
@@ -78,8 +79,18 @@ def get_movies():
         
     movies_cursor, _ = paginate(movies_cursor, page, limit)
     
+    movie_list = list(movies_cursor)
+    movie_ids = [movie["id"] for movie in movie_list]
+
+    # Batch fetch credits
+    credits = db.credits.find({"id": {"$in": movie_ids}})
+    credits_map = {c["id"]: c for c in credits}
+
+    # Get liked actor ids once
+    liked_actor_ids = set(user_details.get("actor_ids", [])) if user_details else set()
+
     movies = []
-    for movie in movies_cursor:
+    for movie in movie_list:
         movie["_id"] = str(movie["_id"])
         movie_id = movie.get("id")
         poster = get_signed_url(f"posters/{movie_id}.jpg")
@@ -89,6 +100,29 @@ def get_movies():
         preference = liked_lookup.get(movie_id)
         movie["watched"] = preference is not None
         movie["preference"] = preference 
+        
+        if not skinny:
+            credit = credits_map.get(movie_id)
+            if credit:
+                # Build castdata
+                cast = credit.get("cast", [])
+                for c in cast:
+                    if c.get('id'):
+                        c['profile_url'] = get_signed_url(f"tmdb_profile_photos/{c['id']}.jpg").get('signed_url')
+                        c["is_liked"] = c['id'] in liked_actor_ids
+                movie["castdata"] = cast
+
+                # Build crewdetails
+                targetjobs = {"Executive Producer", "Original Music Composer", "Director"}
+                crew = []
+                for c in credit.get('crew', []):
+                    if c.get('job') in targetjobs:
+                        c['profile_url'] = get_signed_url(f"tmdb_profile_photos/{c['id']}.jpg").get('signed_url')
+                        crew.append(c)
+                movie["crewdetails"] = crew
+            else:
+                movie["castdata"] = {}
+                movie["crewdetails"] = []
         
         movies.append(movie)
 
