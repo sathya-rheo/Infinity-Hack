@@ -35,17 +35,23 @@ def get_signed_url(filename):
         return {"error": str(e)}
 
 
-def get_castdetails(movie_id):
+def get_castdetails(movie_id, user_id):
     try:
         listofcast = db.credits.find_one(
             {"id" : movie_id}
         ) 
         cast = {}
         cast['cast'] = listofcast['cast']
+        
+        
+        user_details = db.user_details.find_one({"user_id": user_id})
+        liked_actor_ids = set(user_details.get("actor_ids", [])) if user_details else set()
 
+        print(liked_actor_ids)
         for c in cast['cast']:
             if c.get('id'):
                 c['profile_url'] = get_signed_url(f"tmdb_profile_photos/{c['id']}.jpg").get('signed_url')
+                c["is_liked"] = c['id'] in liked_actor_ids
 
         cast['crew'] = listofcast['crew']
 
