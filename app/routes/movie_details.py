@@ -3,7 +3,7 @@ from app import db
 from flask import Blueprint, request, jsonify, send_file, g
 import math
 import ast
-from app.services.movie import get_signed_url,get_castdetails,get_crewdetails
+from app.services.movie import get_signed_url,get_castdetails,get_crewdetails, get_similar_movies, store_in_vector_db, semantic_search_movies
 from app.utils.helper import paginate
 from gridfs import GridFS
 from jose import jwt, JWTError
@@ -196,8 +196,11 @@ def get_signed_url_route():
 
     except Exception as e:
         return {"error": str(e)}, 500
-
-
+    
+@movie_bp.route('/store-in-vector-db', methods=['POST'])
+def store_in_vector_db_route():
+    data = request.json
+    return jsonify(store_in_vector_db(data))
 
 @movie_bp.route('/cast_details')
 @require_auth
@@ -230,3 +233,20 @@ def get_keywords():
 def crewdetails():
     movie_id = request.args.get("movie_id")
     return get_crewdetails(movie_id)
+
+
+@movie_bp.route('/get-similar-movies/<string:movie_id>', methods=['GET'])
+@require_auth
+def get_similar_movies_route(movie_id):
+    return jsonify(get_similar_movies(movie_id, 5))
+
+@movie_bp.route('/semantic-search', methods=['POST'])
+@require_auth
+def semantic_search_route():
+    data = request.get_json()
+    query = data.get('query')
+    if not query:
+        return jsonify({'error': 'Query is required'}), 400
+    user_id = g.user_id
+    results = semantic_search_movies(query, limit=3, user_id=user_id)
+    return jsonify({'results': results}), 200
