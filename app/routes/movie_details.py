@@ -4,7 +4,7 @@ from flask import Blueprint, request, jsonify, send_file, g
 import math
 import ast
 from app.services.movie import get_signed_url,get_castdetails,get_crewdetails
-from app.utils.helper import paginate
+from app.utils.helper import paginate, get_liked_genres
 from gridfs import GridFS
 from jose import jwt, JWTError
 import requests
@@ -88,9 +88,11 @@ def get_movies():
 
     # Get liked actor ids once
     liked_actor_ids = set(user_details.get("actor_ids", [])) if user_details else set()
-
+    liked_genre_ids = set(user_details.get("genre_ids", [])) if user_details else set()
+    
     movies = []
     for movie in movie_list:
+        movie = get_liked_genres(movie, liked_genre_ids)
         movie["_id"] = str(movie["_id"])
         movie_id = movie.get("id")
         poster = get_signed_url(f"posters/{movie_id}.jpg")
@@ -150,12 +152,15 @@ def get_movie_details(movie_id):
     user_details = db.user_details.find_one({"user_id": user_id})
     liked_movies_data = user_details.get("movie_ids", []) if user_details else []
     
+    liked_genre_ids = set(user_details.get("genre_ids", [])) if user_details else set()
+        
+    
     liked_lookup = {
         str(entry["movie_id"]): entry["preference"]
         for entry in liked_movies_data
     }
 
-
+    movie = get_liked_genres(movie, liked_genre_ids)
     ratings_cursor = db.ratings.find({"movieId": movie_id})
     ratings = [{"userId": r["userId"], "rating": r["rating"], "timestamp": r["timestamp"]} for r in ratings_cursor]
 

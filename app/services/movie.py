@@ -44,7 +44,6 @@ def get_castdetails(movie_id, user_id):
         cast['cast'] = listofcast['cast'] 
         user_details = db.user_details.find_one({"user_id": user_id})
         liked_actor_ids = set(user_details.get("actor_ids", [])) if user_details else set()
-        print(liked_actor_ids)
         for c in cast['cast']:
             if c.get('id'):
                 c['profile_url'] = get_signed_url(f"tmdb_profile_photos/{c['id']}.jpg").get('signed_url')
@@ -75,5 +74,18 @@ def get_crewdetails(movie_id):
         return {"error": str(e)}, 500
 
 
+
+def fetch_movies(movie_ids):
+    if not movie_ids:
+        return []
+    movies_cursor = db.movies_metadata.find({"id": {"$in": movie_ids}})
+    movies = []
+    for movie in movies_cursor:
+        movie["_id"] = str(movie["_id"])
+        movie_id = movie.get("id")
+        poster = get_signed_url(f"posters/{movie_id}.jpg")
+        movie["poster_url"] = poster["signed_url"]
+        movies.append(movie)
+    return movies
 
 
