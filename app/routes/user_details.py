@@ -5,6 +5,7 @@ from app.services.watchlist import paginate_list
 from app.services.movie import get_signed_url
 import math
 from app.services.auth import require_auth
+from app.services.movie import fetch_movies
 
 
 user_details_collection = db.user_details
@@ -122,3 +123,88 @@ def remove_liked_movie():
         return jsonify({"message": "Movie was not in preferred movies or already removed"}), 400
 
     return jsonify({"message": "Movie removed from preferred movies"}), 200
+
+@user_bp.route("/add_liked_genre", methods=["POST"])
+@require_auth
+def create_or_update_liked_genres():
+    data = request.json
+    user_id = g.user_id
+
+    genre_id = int(data.get("genre_id"))
+    if not user_id or not genre_id:
+        return jsonify({"error": "user_id and genre_id are required"}), 400
+
+    user_details = user_details_collection.find_one({"user_id": user_id})
+    if user_details:
+        # Use .get with default empty list to avoid KeyError
+        genre_ids = user_details.get("genre_ids", [])
+
+        if genre_id not in genre_ids:
+            genre_ids.append(genre_id)
+            user_details_collection.update_one(
+                {"user_id": user_id},
+                {"$set": {"genre_ids": genre_ids}}
+            )
+            return jsonify({"message": "Genre added to liked list"}), 200
+        else:
+            return jsonify({"message": "Genre already liked"}), 400
+    else:
+        # Create new document with actor_ids list
+        user_details_collection.insert_one({
+            "user_id": user_id,
+            "genre_ids": [genre_id]
+        })
+        return jsonify({"message": "Liked genre list created"}), 200
+
+
+@user_bp.route("/remove_liked_genre", methods=["DELETE"])
+@require_auth
+def remove_liked_genre():
+    user_id = g.user_id
+    genre_id = request.args.get("genre_id")
+
+    if not genre_id:
+        return jsonify({"error": "genre_id is required"}), 400
+
+    result = user_details_collection.update_one(
+        {"user_id": user_id},
+        {"$pull": {"genre_ids": int(genre_id)}}
+    )
+
+    if result.modified_count == 0:
+        return jsonify({"message": "Genre was not in Liked Genres or already removed"}), 200
+
+    return jsonify({"message": "Genre removed from Liked Genres"}), 200
+
+
+
+@user_bp.route("/user_preference", methods=["GET"])
+@require_auth
+def get_user_preferences():
+    user_id = g.user_id
+
+    # Get user detail document
+    user_details = db.user_details.find_one({"user_id": user_id}) or {}
+    watchlist = db.watchlists.find_one({"user_id": user_id}) or {}
+
+    liked_movie_entries = user_details.get("movie_ids", [])
+    watchlisted_ids = watchlist.get("movie_ids", [])
+
+    liked_ids = []
+    watched_ids = []
+
+    liked_lookup = {}
+
+    for entry in liked_movie_entries:
+        movie_id = entry.get("movie_id")
+        preference = entry.get("preference")
+        if movie_id:
+            watched_ids.append(movie_id)
+            if preference == "Like":
+                liked_ids.append(movie_id)
+            
+    return jsonify({
+        "liked_movies": fetch_movies(liked_ids),
+        "watched_movies": fetch_movies(watched_ids),
+        "watchlisted_movies": fetch_movies(watchlisted_ids)
+    }), 200

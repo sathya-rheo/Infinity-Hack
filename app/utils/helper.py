@@ -11,3 +11,10 @@ def get_genre_list():
                   "Rogue State","Romance","Science Fiction","Sentai Filmworks","TV Movie","Telescene Film Group Productions","The Cartel","Thriller","Vision View Entertainment","War","Western"
                 ]
     return genre_list
+
+def get_liked_genres(movie, liked_genre_ids):
+    for genre in movie.get("genres", []):
+        genre_id = genre.get("id")
+        genre["liked"] = genre_id in liked_genre_ids
+
+    return movie
